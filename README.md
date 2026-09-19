@@ -20,7 +20,7 @@ Requires:
 go install github.com/new-er/gh-kill@latest
 ```
 
-From source (if something's not yet tagged):
+From source:
 
 ```sh
 git clone https://github.com/new-er/gh-kill
