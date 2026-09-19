@@ -1,4 +1,4 @@
-module gh-kill
+module github.com/new-er/gh-kill
 
 go 1.25.0
 

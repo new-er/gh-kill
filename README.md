@@ -16,7 +16,11 @@ Requires:
 - [Go](https://go.dev/) 1.25+
 - `jq` (used to parse API responses)
 
-From source:
+```sh
+go install github.com/new-er/gh-kill@latest
+```
+
+From source (if something's not yet tagged):
 
 ```sh
 git clone https://github.com/new-er/gh-kill
