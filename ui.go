@@ -30,14 +30,16 @@ type program struct {
 	killing map[int]bool
 	killed  map[int]bool
 	errs    map[int]error
+	cancels map[int]int
 	note    string
 }
 
 type checkMsg struct{}
 
 type statusRes struct {
-	status string
-	err    error
+	status    string
+	err       error
+	cancelErr error
 }
 
 type resultsMsg struct {
@@ -53,6 +55,7 @@ func newProgram(repo string, runs []Run) program {
 		killed:  map[int]bool{},
 		killing: map[int]bool{},
 		errs:    map[int]error{},
+		cancels: map[int]int{},
 	}
 }
 
@@ -123,12 +126,9 @@ func (m program) startKill() (tea.Model, tea.Cmd) {
 
 	m.mode = modeKill
 	m.killing = map[int]bool{}
+	m.cancels = map[int]int{}
 	for i := range targets {
 		m.killing[i] = true
-		if err := cancel(m.repo, m.runs[i].ID); err != nil {
-			m.errs[i] = err
-			m.note = fmt.Sprintf("cancel %d: %v", m.runs[i].ID, err)
-		}
 	}
 	m.note = fmt.Sprintf("cancelling %d run(s)…", len(targets))
 	return m, m.cmdCheck()
@@ -148,8 +148,9 @@ func (m program) startCheck() (tea.Model, tea.Cmd) {
 	go func() {
 		res := map[int]statusRes{}
 		for _, i := range targets {
-			st, err := statusOf(m.repo, m.runs[i].ID)
-			res[i] = statusRes{status: st, err: err}
+			cErr := cancel(m.repo, m.runs[i].ID)
+			st, sErr := statusOf(m.repo, m.runs[i].ID)
+			res[i] = statusRes{status: st, err: sErr, cancelErr: cErr}
 		}
 		prog.Send(resultsMsg{results: res})
 	}()
@@ -163,6 +164,12 @@ func (m program) cmdCheck() tea.Cmd {
 func (m program) updateResults(r resultsMsg) (tea.Model, tea.Cmd) {
 	var note string
 	for i, sr := range r.results {
+		if sr.cancelErr != nil {
+			m.errs[i] = sr.cancelErr
+			note = fmt.Sprintf("cancel %d: %v", m.runs[i].ID, sr.cancelErr)
+		} else {
+			m.cancels[i]++
+		}
 		if sr.err != nil {
 			m.errs[i] = sr.err
 			note = fmt.Sprintf("status %d: %v", m.runs[i].ID, sr.err)
@@ -187,11 +194,15 @@ func (m program) updateResults(r resultsMsg) (tea.Model, tea.Cmd) {
 func (m program) finish() {
 	done := len(m.killed)
 	nerr := len(m.errs)
+	totalCancels := 0
+	for _, c := range m.cancels {
+		totalCancels += c
+	}
 	switch {
 	case nerr == 0:
-		m.note = fmt.Sprintf("done — %d cancelled", done)
+		m.note = fmt.Sprintf("done — %d cancelled, %d cancel call(s)", done, totalCancels)
 	default:
-		m.note = fmt.Sprintf("done — %d cancelled, %d errored", done, nerr)
+		m.note = fmt.Sprintf("done — %d cancelled, %d cancel call(s), %d errored", done, totalCancels, nerr)
 	}
 }
 
@@ -217,10 +228,11 @@ func (m program) View() string {
 			box = "x"
 		}
 		state := r.Status
+		count := m.cancels[i]
 		if m.killed[i] {
-			state = "cancelled ✓"
+			state = fmt.Sprintf("cancelled ✓ (%d×)", count)
 		} else if m.killing[i] {
-			state = "cancelling…"
+			state = fmt.Sprintf("cancelling… (%d×)", count)
 		}
 		b.WriteString(fmt.Sprintf("%s [%s] %-30s %-16s %s\n",
 			marker, box, truncate(r.Name, 30), truncate(r.Branch, 16), state))
@@ -232,7 +244,7 @@ func (m program) View() string {
 	b.WriteByte('\n')
 	hint := "j/k or ↑/↓ move · space select · a all · enter kill · esc quit"
 	if m.mode == modeKill {
-		hint = "polling until cancelled · esc abort wait"
+		hint = "cancelling repeatedly · esc abort wait"
 	}
 	b.WriteString(hint)
 	if m.note != "" {

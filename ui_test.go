@@ -16,6 +16,7 @@ func killModel() program {
 		sel:     map[int]bool{0: true},
 		killed:  map[int]bool{},
 		errs:    map[int]error{},
+		cancels: map[int]int{},
 	}
 }
 
@@ -26,7 +27,7 @@ func TestUpdateResults_Terminates(t *testing.T) {
 	m := killModel()
 
 	// One more poll: still in progress -> must keep polling, not quit.
-	out, cmd := m.updateResults(resultsMsg{results: map[int]statusRes{0: {status: "in_progress"}}})
+	out, cmd := m.updateResults(resultsMsg{results: map[int]statusRes{0: {status: "in_progress", cancelErr: nil}}})
 	m2 := out.(program)
 	if cmd == nil {
 		t.Fatal("expected a follow-up poll cmd while a run is still in_progress")
@@ -36,7 +37,7 @@ func TestUpdateResults_Terminates(t *testing.T) {
 	}
 
 	// Next poll: cancelled -> done, must quit (no follow-up poll cmd).
-	out2, cmd2 := m2.updateResults(resultsMsg{results: map[int]statusRes{0: {status: "cancelled"}}})
+	out2, cmd2 := m2.updateResults(resultsMsg{results: map[int]statusRes{0: {status: "cancelled", cancelErr: nil}}})
 	m3 := out2.(program)
 	if cmd2 == nil {
 		t.Fatal("expected a quit cmd once all runs are cancelled")
@@ -51,7 +52,7 @@ func TestUpdateResults_Terminates(t *testing.T) {
 
 func TestUpdateResults_StatusErrorKeepsPolling(t *testing.T) {
 	m := killModel()
-	out, cmd := m.updateResults(resultsMsg{results: map[int]statusRes{0: {err: errors.New("boom")}}})
+	out, cmd := m.updateResults(resultsMsg{results: map[int]statusRes{0: {err: errors.New("boom"), cancelErr: nil}}})
 	m2 := out.(program)
 	// Errors are recorded but not terminal; the loop continues.
 	if cmd == nil {
