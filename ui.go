@@ -208,7 +208,7 @@ func (m program) finish() {
 
 func (m program) View() string {
 	var b strings.Builder
-	b.WriteString("gh-ci-kill\n")
+	b.WriteString("gh-kill\n")
 	sub := fmt.Sprintf("%d active run(s) · %d selected", len(m.runs), len(m.sel))
 	if m.mode == modeKill {
 		sub = fmt.Sprintf("%d cancelling · %d done", len(m.killing), len(m.killed))

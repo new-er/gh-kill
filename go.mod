@@ -1,4 +1,4 @@
-module gh-ci-kill
+module gh-kill
 
 go 1.25.0
 

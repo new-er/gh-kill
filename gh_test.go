@@ -40,7 +40,7 @@ case "$1" in
         ;;
     esac
     ;;
-  repo) echo "new-er/gh-ci-kill" ;;
+  repo) echo "new-er/gh-kill" ;;
 esac
 exit 0
 `
@@ -72,7 +72,7 @@ func TestGhRoundTrip(t *testing.T) {
 		{"id":101,"name":"build + test","head_branch":"main","status":"in_progress"},
 		{"id":102,"name":"e2e","head_branch":"release/1.2","status":"queued"}
 	]}`)
-	repo := "new-er/gh-ci-kill"
+	repo := "new-er/gh-kill"
 
 	runs, err := listActive(repo, 100)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestListActive_ZeroActive(t *testing.T) {
 	]}`
 	installFake(t, payload)
 
-	runs, err := listActive("new-er/gh-ci-kill", 100)
+	runs, err := listActive("new-er/gh-kill", 100)
 	if err != nil {
 		t.Fatalf("listActive with no active runs: %v", err)
 	}
